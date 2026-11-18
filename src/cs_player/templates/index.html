@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}{{ player.nickname }} · CS Legends{% endblock %}
+{% block body_class %}body-map{% endblock %}
+
+{% block site_header %}{% endblock %}
+{% block site_footer %}{% endblock %}
+
+{% block content %}
+<div class="map-shell">
+  <div id="globe" aria-label="{{ player.nickname }} 赛事国家三维地球"></div>
+  <div class="map-fallback" id="map-fallback" hidden>
+    3D 地球加载失败，赛事信息仍可查看。
+  </div>
+
+  <div class="hud">
+    <div class="player-picker">
+      <button type="button"
+              class="player-picker__button"
+              id="player-toggle"
+              aria-haspopup="true"
+              aria-expanded="false"
+              aria-controls="player-menu">
+        <span class="player-picker__avatar">{{ player.nickname[0] }}</span>
+        <span class="player-picker__copy">
+          <b>{{ player.nickname }}</b>
+          <small>{{ player.team }} · {{ player.country_cn }}</small>
+        </span>
+        <span class="player-picker__chevron" aria-hidden="true"></span>
+      </button>
+
+      <div class="player-menu" id="player-menu" hidden>
+        <p class="player-menu__label">选择选手</p>
+        {% for item in players %}
+        <button type="button"
+                class="player-option{% if item.active %} is-active{% endif %}"
+                data-player="{{ item.id }}">
+          <span class="player-option__avatar">{{ item.nickname[0] }}</span>
+          <span class="player-option__copy">
+            <b>{{ item.nickname }}</b>
+            <small>{{ item.team }} · {{ item.country_cn }}</small>
+          </span>
+          {% if item.active %}<span class="player-option__state">当前</span>{% endif %}
+        </button>
+        {% endfor %}
+        <p class="player-menu__hint">更多传奇选手筹备中</p>
+      </div>
+    </div>
+
+    <p class="hud__hint">拖拽旋转 · 滚轮缩放 · 图标为主办方 · 悬停国家查看赛事</p>
+  </div>
+
+  <div class="account">
+    {% if user %}
+      <span class="account__name">@{{ user.username }}</span>
+      <form action="/auth/logout" method="post">
+        <button type="submit" class="account__button">退出</button>
+      </form>
+    {% else %}
+      <a class="account__button" href="/login?next=/">登录</a>
+    {% endif %}
+  </div>
+
+  <aside class="event-detail" id="event-detail" hidden aria-live="polite">
+    <button type="button" class="event-detail__close" id="event-detail-close" aria-label="关闭赛事详情">×</button>
+    <div id="event-detail-content"></div>
+  </aside>
+</div>
+
+<script id="map-events" type="application/json">{{ map_events|tojson }}</script>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/globe.gl@2"></script>
+<script src="{{ url_for('static', path='js/map.js') }}"></script>
+{% endblock %}

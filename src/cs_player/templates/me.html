@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}我的账号 · CS Legends{% endblock %}
+
+{% block content %}
+<section class="me-shell">
+  <div class="section-head">
+    <div>
+      <p class="eyebrow">ACCOUNT</p>
+      <h1>我的账号</h1>
+    </div>
+    <span class="status-pill">已登录</span>
+  </div>
+
+  <div class="me-grid">
+    <div class="account-card">
+      <div class="account-avatar">{{ user.username[0]|upper }}</div>
+      <div>
+        <p class="account-name">@{{ user.username }}</p>
+        <p class="account-meta">注册于 {{ created_at }}</p>
+      </div>
+      <form action="/auth/logout" method="post" class="account-logout">
+        <button type="submit" class="button button--ghost">退出登录</button>
+      </form>
+    </div>
+
+    <div class="me-info">
+      <h2>账号已就绪</h2>
+      <p>
+        v1 的账号用于建立你的站点身份。当前 ZywOo 档案的 {{ event_count }} 个节点对所有人公开，
+        登录后可进入个人页，后续版本会在这里加入「收藏赛事」与「观赛足迹」。
+      </p>
+      <ul class="me-list">
+        <li><span>登录方式</span><b>用户名 + 密码</b></li>
+        <li><span>会话</span><b>签名 Cookie · 14 天</b></li>
+        <li><span>密码存储</span><b>PBKDF2-SHA256</b></li>
+        <li><span>当前选手</span><b>ZywOo</b></li>
+      </ul>
+      <div class="me-actions">
+        <a class="button button--primary" href="/">回到首页</a>
+        <a class="button button--ghost" href="/#timeline">继续看时间线</a>
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}
