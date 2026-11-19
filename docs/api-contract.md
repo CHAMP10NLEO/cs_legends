@@ -1,7 +1,7 @@
 # 接口契约（v1）
 
 Base URL：`http://127.0.0.1:8000`
-页面接口返回 HTML；数据接口返回 JSON。除登录/注册外均为只读。
+页面接口返回 HTML；数据接口返回 JSON，所有接口均为只读。
 
 ## 1. 健康检查
 
@@ -77,58 +77,6 @@ Base URL：`http://127.0.0.1:8000`
 - `matches` 为该选手在本届赛事参加的全部比赛，按时间正序；`stage` 为中文阶段名，`score` 为系列赛比分（BO1 使用地图比分），`result` 为 `胜` / `负`。
 - `tags` 取值：`major`、`champion`、`mvp`、`milestone`、`notable`。
 
-## 3. 注册（HTML 表单）
+## 3. 账号接口（本期不提供）
 
-`POST /auth/register`
-Content-Type: `application/x-www-form-urlencoded`
-
-| 字段 | 类型 | 规则 |
-| --- | --- | --- |
-| `username` | string | 3–20 字符，字母/数字/下划线，唯一 |
-| `password` | string | 8–72 字符 |
-| `confirm` | string | 必须与 `password` 一致 |
-
-- 成功：`303 See Other` → `next` 或 `/`，并设置会话 Cookie。
-- 失败：`400`，重新渲染登录页并给出错误文案。
-- 用户名冲突：`409`，文案「用户名已被占用」。
-
-## 4. 登录（HTML 表单）
-
-`POST /auth/login`
-
-| 字段 | 类型 |
-| --- | --- |
-| `username` | string |
-| `password` | string |
-| `next` | string，可选，仅允许站内相对路径 |
-
-- 成功：`303` → `next` 或 `/`。
-- 失败：`400`，文案「用户名或密码错误」，不泄露账号是否存在。
-
-## 5. 退出
-
-`POST /auth/logout` → `303` → `/`
-
-## 6. 当前用户（HTML）
-
-`GET /me`
-- 已登录：200，渲染个人页。
-- 未登录：`303` → `/login?next=/me`。
-
-## 7. 当前用户（JSON）
-
-`GET /api/me`
-- 已登录：
-
-```json
-{ "id": 1, "username": "player", "created_at": "2026-11-18T10:00:00+08:00" }
-```
-
-- 未登录：`401 {"detail": "未登录"}`
-
-## 8. 会话与错误约定
-
-- Cookie 名：`cs_session`；`HttpOnly`、`SameSite=Lax`、14 天有效。
-- 生产环境必须通过 `CS_LEGENDS_SECRET` 注入随机密钥；开发环境有默认值。
-- 表单错误采用服务端渲染，不返回 JSON；JSON 接口错误统一为 `{"detail": "..."}`。
-- v1 不提供 JSON 注册/登录接口，避免与表单流程重复。
+v1 聚焦纯前端展示，不提供注册、登录、退出、个人页或用户 JSON 接口；`/login`、`/me`、`/api/me` 返回 `404`。后续版本引入账号体系时再补充本节契约。

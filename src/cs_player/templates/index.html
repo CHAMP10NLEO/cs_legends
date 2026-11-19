@@ -25,11 +25,15 @@
           <b>{{ player.nickname }}</b>
           <small>{{ player.team }} · {{ player.country_cn }}</small>
         </span>
-        <span class="player-picker__chevron" aria-hidden="true"></span>
+        <span class="player-picker__chevron" aria-hidden="true">
+          <svg viewBox="0 0 16 16" fill="none">
+            <path d="M4 6.5 8 10.5 12 6.5" stroke="currentColor" stroke-width="1.5"
+                  stroke-linecap="round" stroke-linejoin="round"></path>
+          </svg>
+        </span>
       </button>
 
       <div class="player-menu" id="player-menu" hidden>
-        <p class="player-menu__label">选择选手</p>
         {% for item in players %}
         <button type="button"
                 class="player-option{% if item.active %} is-active{% endif %}"
@@ -42,22 +46,10 @@
           {% if item.active %}<span class="player-option__state">当前</span>{% endif %}
         </button>
         {% endfor %}
-        <p class="player-menu__hint">更多传奇选手筹备中</p>
       </div>
     </div>
 
-    <p class="hud__hint">拖拽旋转 · 滚轮缩放 · 图标为主办方 · 悬停国家查看赛事</p>
-  </div>
-
-  <div class="account">
-    {% if user %}
-      <span class="account__name">@{{ user.username }}</span>
-      <form action="/auth/logout" method="post">
-        <button type="submit" class="account__button">退出</button>
-      </form>
-    {% else %}
-      <a class="account__button" href="/login?next=/">登录</a>
-    {% endif %}
+    <p class="hud__hint">拖拽旋转 · 滚轮缩放 · 悬停国家查看赛事</p>
   </div>
 
   <aside class="event-detail" id="event-detail" hidden aria-live="polite">

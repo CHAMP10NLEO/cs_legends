@@ -18,11 +18,11 @@
 
 | 维度 | 现状 |
 | --- | --- |
-| 页面 | `/` 全屏三维地球、`/login` 登录注册、`/me` 个人页 |
+| 页面 | `/` 全屏三维地球（本期不含登录与个人页） |
 | 数据 | `zywoo.json`：27 条生涯节点，25 条赛事，139 场逐场赛果 |
 | 地图 | Globe.gl 三维地球 + Natural Earth 国家多边形；国家悬停高亮、单击固定右侧详情或底部抽屉 |
-| 账号 | 签名 Cookie 会话，PBKDF2-SHA256 210k 次，注册/登录/退出 |
-| API | `/api/health`、`/api/players/zywoo`、`/api/me` |
+| 账号 | 本期无账号体系（代码已移除，后续版本重新引入） |
+| API | `/api/health`、`/api/players/zywoo` |
 | 设计 | 暗色、全屏、无照片，已有设计 Token 与响应式规范 |
 
 ### 1.2 关键限制
@@ -282,7 +282,7 @@ src/cs_player/data/
 **地图方案（2026-11-18 确认，替代 Leaflet）：**
 
 - 渲染：Globe.gl 2（Three.js），jsDelivr CDN 引入，无前端构建步骤。
-- 底图：`src/cs_player/static/data/countries.geojson`（Natural Earth，178 个 feature），按国家多边形分块，由 `polygonsData` 承载。
+- 底图：`src/cs_player/static/data/countries.geojson`（Natural Earth，177 个 feature），按国家多边形分块，由 `polygonsData` 承载。
 - 交互：国家悬停高亮（`polygonCapColor` 等 accessor + 重新赋值触发重绘）；右侧面板（移动端底部抽屉）展示该国赛事；单击固定面板，点海洋 / `×` / Esc 取消。
 - 标记：`htmlElementsData` + `htmlElement` 渲染主办方徽标，每国一枚、列出该国全部主办方（按届数降序），做背面裁剪与屏幕空间去重。
 - 性能：国家多边形只加载一次；筛选时更新 data 与 accessor，不重建 Globe 实例。
@@ -438,7 +438,7 @@ v2 赛事量上升后：
 
 ### 7.6 性能
 
-- 国家 GeoJSON 约 820KB（178 个 feature），必须开 gzip；它只加载一次，不随筛选变化。
+- 国家 GeoJSON 约 839KB（177 个 feature），必须开 gzip；它只加载一次，不随筛选变化。
 - 现状把事件与 matches 一起内嵌在 `#map-events`；v2 改为 `/api/map` 只返回坐标级字段、详情懒加载，首屏 JSON 控制在 150KB 以内。
 - 开启 `GZipMiddleware`；静态资源加 `Cache-Control: max-age=31536000, immutable`（带 hash 文件名）或至少 7 天。
 - 图片用 `loading="lazy"` + `srcset`；没有图片就用渐变/单色块，不要空 `<img>`。

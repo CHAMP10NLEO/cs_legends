@@ -20,15 +20,18 @@
     "阿联酋": "阿拉伯联合酋长国"
   };
 
-  var COUNTRIES_URL = "/static/data/countries.geojson";
-  var CAP_IDLE = "rgba(23, 37, 52, 0.94)";
-  var CAP_HOST = "rgba(42, 64, 84, 0.97)";
-  var CAP_HOVER = "rgba(74, 222, 128, 0.55)";
-  var SIDE_IDLE = "rgba(15, 23, 42, 0.72)";
-  var SIDE_HOVER = "rgba(74, 222, 128, 0.32)";
-  var STROKE_IDLE = "rgba(94, 234, 212, 0.16)";
-  var STROKE_HOST = "rgba(94, 234, 212, 0.4)";
-  var STROKE_HOVER = "#4ade80";
+  // 版本号用于打破浏览器对旧国界数据的强缓存。
+  var COUNTRIES_URL = "/static/data/countries.geojson?v=20261120";
+  // 半透明面让底下的夜景纹理透出来，避免整块实色显得扁平。
+  var CAP_IDLE = "rgba(28, 48, 66, 0.72)";
+  var CAP_HOST = "rgba(44, 84, 106, 0.9)";
+  var CAP_HOVER = "rgba(74, 222, 128, 0.34)";
+  // 侧面贴近面颜色，避免海岸线出现一圈发黑的"阴影带"。
+  var SIDE_IDLE = "rgba(20, 38, 54, 0.7)";
+  var SIDE_HOVER = "rgba(74, 222, 128, 0.36)";
+  var STROKE_IDLE = "rgba(94, 234, 212, 0.14)";
+  var STROKE_HOST = "rgba(94, 234, 212, 0.38)";
+  var STROKE_HOVER = "rgba(167, 243, 208, 0.95)";
 
   var ORGANIZER_META = {
     "ESL": { short: "ESL", color: "#4f9cf9" },
@@ -122,6 +125,9 @@
     var el = document.createElement("div");
     el.className = "map-marker";
     el.dataset.country = marker.label;
+    if (marker.orgs.length) {
+      el.style.setProperty("--dot", marker.orgs[0].color);
+    }
     el.title =
       marker.label +
       " · " +
@@ -244,12 +250,16 @@
       return match.result === "胜";
     }).length;
 
+    var hasStage = matches.some(function (match) {
+      return match.stage;
+    });
+
     var rows = matches
       .map(function (match) {
         var win = match.result === "胜";
         return (
           "<li>" +
-          '<span class="match-stage">' + escapeHtml(match.stage) + "</span>" +
+          (hasStage ? '<span class="match-stage">' + escapeHtml(match.stage) + "</span>" : "") +
           '<span class="match-opponent">' + escapeHtml(match.opponent) + "</span>" +
           '<span class="match-score">' + escapeHtml(match.score) + "</span>" +
           '<span class="match-result ' + (win ? "is-win" : "is-loss") + '">' +
@@ -271,7 +281,9 @@
       (matches.length - wins) +
       " 负</span>" +
       "</div>" +
-      '<ol class="match-list">' +
+      '<ol class="match-list' +
+      (hasStage ? "" : " match-list--plain") +
+      '">' +
       rows +
       "</ol>"
     );
@@ -280,7 +292,7 @@
   function eventBlockHtml(event) {
     var place = [event.city, event.country].filter(Boolean).join(" · ");
     var organizer = event.organizer || "未记录";
-    var venue = event.venue && event.city !== "线上" ? event.venue : "线上赛";
+    var venue = event.venue || (event.city === "线上" ? "线上赛" : "未记录");
 
     return (
       '<article class="country-event">' +
@@ -388,7 +400,7 @@
   }
 
   function polygonAltitude(feature) {
-    return feature === hoveredCountry ? 0.03 : 0.008;
+    return feature === hoveredCountry ? 0.018 : 0.004;
   }
 
   function hasEvents(feature) {
@@ -419,6 +431,36 @@
       .polygonStrokeColor(polygonStrokeColor);
   }
 
+  // 提高海洋高光，并补一盏冷色轮廓光，让球体边缘更有体积感。
+  function refineMaterial() {
+    if (!globe) return;
+
+    var material = globe.globeMaterial();
+    if (material) {
+      material.shininess = 8;
+      if (material.specular && material.specular.setStyle) {
+        material.specular.setStyle("#24384a");
+      }
+    }
+
+    var lights = globe.lights() || [];
+    var template = null;
+    lights.forEach(function (light) {
+      if (light.isAmbientLight) light.intensity = 3.8;
+      if (light.isDirectionalLight) {
+        light.intensity = 2.2;
+        if (!template) template = light;
+      }
+    });
+    if (!template || !template.clone) return;
+
+    var rim = template.clone();
+    rim.position.set(-100, -45, -80);
+    if (rim.color && rim.color.setStyle) rim.color.setStyle("#5eead4");
+    rim.intensity = 0.5;
+    globe.scene().add(rim);
+  }
+
   function initGlobe(countries) {
     if (typeof window.Globe === "undefined") {
       showFallback("3D 地球加载失败，请检查网络后刷新。");
@@ -439,13 +481,15 @@
       .globeImageUrl("/static/images/globe/earth-night.jpg")
       .bumpImageUrl("/static/images/globe/earth-topology.png")
       .showAtmosphere(true)
-      .atmosphereColor("#4ade80")
-      .atmosphereAltitude(0.16)
+      .atmosphereColor("#5eead4")
+      .atmosphereAltitude(0.13)
       .polygonsData(countries)
       .polygonAltitude(polygonAltitude)
       .polygonCapColor(polygonCapColor)
       .polygonSideColor(polygonSideColor)
       .polygonStrokeColor(polygonStrokeColor)
+      .polygonCapCurvatureResolution(3)
+      .polygonsTransitionDuration(260)
       .htmlElementsData(markers)
       .htmlLat(function (marker) {
         return marker.lat;
@@ -459,6 +503,7 @@
       .onPolygonHover(function (feature) {
         hoveredCountry = feature;
         refreshPolygons();
+        globeNode.classList.toggle("is-over-country", !!feature && hasEvents(feature));
         // 已单击固定的国家面板不随悬停切换或关闭，直到被取消固定。
         if (feature) {
           if (!pinnedCountry) showCountry(feature);
@@ -473,18 +518,20 @@
       })
       .onGlobeClick(hideDetail);
 
+    refineMaterial();
+
     globe.pointOfView(
-      { lat: 24, lng: 18, altitude: narrow ? 2.8 : 2.2 },
+      { lat: 24, lng: 18, altitude: narrow ? 2.6 : 2.0 },
       0
     );
 
     var controls = globe.controls();
     controls.enableZoom = true;
     controls.enablePan = false;
-    controls.minDistance = 130;
-    controls.maxDistance = 520;
+    controls.minDistance = 120;
+    controls.maxDistance = 480;
     controls.autoRotate = true;
-    controls.autoRotateSpeed = 0.45;
+    controls.autoRotateSpeed = 0.32;
 
     controls.addEventListener("start", pauseRotation);
     controls.addEventListener("end", function () {
@@ -494,6 +541,11 @@
 
     window.setInterval(updateMarkerVisibility, 400);
     updateMarkerVisibility();
+
+    // 等首帧画出来再淡入画布，避免纹理加载前的空球闪一下。
+    window.requestAnimationFrame(function () {
+      globeNode.classList.add("is-ready");
+    });
 
     window.addEventListener("resize", function () {
       if (globe) globe.width(globeNode.clientWidth).height(globeNode.clientHeight);

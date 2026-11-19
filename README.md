@@ -16,34 +16,22 @@
 uv sync
 uv run uvicorn cs_player.app:app --reload --port 8000
 ```
+或
+```powershell
+uv run cs-player
+```
 
 打开 http://127.0.0.1:8000
 
-生产环境请设置随机会话密钥：
-
-```powershell
-$env:CS_LEGENDS_SECRET = "替换为足够长的随机字符串"
-$env:CS_LEGENDS_HTTPS_ONLY = "1"
-```
-
-可选环境变量：
-
-| 变量 | 默认值 | 说明 |
-| --- | --- | --- |
-| `CS_LEGENDS_SECRET` | 开发用默认值 | 会话签名密钥 |
-| `CS_LEGENDS_DB` | `./data/cs_legends.db` | SQLite 路径 |
-| `CS_LEGENDS_HTTPS_ONLY` | 未设置 | 设为 `1` 时 Cookie 仅 HTTPS |
+页面为纯前端展示，无需登录、数据库或环境变量配置。
 
 ## 页面与接口
 
 | 路径 | 说明 |
 | --- | --- |
 | `/` | 全屏三维地球：选手选择器、国家分块与高亮、主办方图标、悬停国家查看赛事 |
-| `/login` | 登录 / 注册（成功后回到地图） |
-| `/me` | 个人页（需登录） |
 | `/api/health` | 健康检查 |
 | `/api/players/zywoo` | ZywOo 档案、统计与事件 JSON |
-| `/api/me` | 当前用户 JSON（需登录） |
 
 契约详见 [docs/api-contract.md](docs/api-contract.md)。
 
@@ -53,8 +41,6 @@ $env:CS_LEGENDS_HTTPS_ONLY = "1"
 docs/                     PRD、接口契约、设计规范、状态
 src/cs_player/
   app.py                  FastAPI 路由与页面
-  auth.py                 密码哈希、会话
-  db.py                   SQLite
   content.py              读取与整理赛事数据、选手列表
   data/zywoo.json         选手与 27 条生涯节点（25 条赛事含逐场赛果）
   templates/              Jinja2 模板
@@ -71,6 +57,6 @@ src/cs_player/
 
 - Globe.gl 走 jsDelivr CDN，需要外网；地球纹理与国界数据已本地化，断网时无法呈现 3D 地球。
 - 需要浏览器支持 WebGL。
-- 国界 GeoJSON 共 178 个国家/地区、约 820KB，首次加载需一次静态请求。
+- 国界 GeoJSON 共 177 个国家/地区（台湾地区并入中华人民共和国）、约 839KB，首次加载需一次静态请求。
 - v1 仅依赖 `SameSite=Lax`，公网部署前应补 CSRF token。
 - 单选手、单机 SQLite，暂不支持多实例部署。
