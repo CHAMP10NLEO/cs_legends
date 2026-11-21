@@ -4,13 +4,15 @@
 
 ## 0. 结论先行
 
-1. **不要重写 v1。** 它已经解决了最难的两件事：全屏地图体验和账号会话。
+1. **不要重写 v1。** 它已经解决了最难的一件事：全屏地图体验（账号体系已于 v1 移除，v2 暂不恢复）。
 2. **真正要改的是内容模型。** 现在一条 `event` 同时表示「赛事」和「某选手参加该赛事」，多选手会重复、无法互查。应拆成 `tournament`（赛事）+ `appearance`（参赛记录）+ `match`（单场）+ `chapter`（故事章节）。
 3. **技术栈保持不变。** FastAPI + Jinja2 服务端渲染 + Globe.gl 2（Three.js）+ 原生 JS，不引入 React/Vue，不做前端构建。
-4. **内容先继续用 JSON。** 可 diff、可 code review、可版本管理；用户和收藏继续用 SQLite。等出现非技术编辑，再考虑后台和 PostgreSQL。
-5. **交付顺序：** 内容模型 → 多选手页面 → 全局三维地球/时间轴 → 故事化 → 账号增强 → 部署。
+4. **内容先继续用 JSON。** 可 diff、可 code review、可版本管理。账号与收藏暂不做，恢复时再用 SQLite；等出现非技术编辑，再考虑后台和 PostgreSQL。
+5. **交付顺序：** 内容模型 → 多选手页面 → 全局三维地球/时间轴 → 故事化 → 部署（账号体系暂不做）。
 
 > **决策记录（2026-11-18）：** 地图方案确认为**三维地球**——Globe.gl 2 + Three.js + Natural Earth 国界数据，v1 已按此实现并验收。Leaflet / 瓦片地图方案作废，不再作为备选或后续版本目标。权威设计描述见 `docs/design-spec.md`（三维地球章节），接口见 `docs/api-contract.md`。
+
+> **决策记录（2026-11-21）：** **v2 暂不做账号体系**（注册 / 登录 / 退出 / 收藏 / CSRF），保持纯只读展示。原 §4.3 的 `/login` `/me`、§4.4 的收藏接口、§5 P0 的账号项、阶段 5「账号增强」均已从范围中移除，实现设计保留在 §7.5 供后续恢复时参考。同时按实际数据校正全文口径：84 条记录（82 赛事 + 2 里程碑）/ 398 场，赛果截至 2026-11-15，国界 178 个 feature。
 
 ## 1. 现状盘点
 
@@ -19,9 +21,9 @@
 | 维度 | 现状 |
 | --- | --- |
 | 页面 | `/` 全屏三维地球（本期不含登录与个人页） |
-| 数据 | `zywoo.json`：27 条生涯节点，25 条赛事，139 场逐场赛果 |
+| 数据 | `zywoo.json`：84 条生涯节点（82 条赛事 + 2 条里程碑），398 场逐场赛果，截至 2026-11-15 |
 | 地图 | Globe.gl 三维地球 + Natural Earth 国家多边形；国家悬停高亮、单击固定右侧详情或底部抽屉 |
-| 账号 | 本期无账号体系（代码已移除，后续版本重新引入） |
+| 账号 | 无账号体系（代码已移除）；v2 暂不恢复，保持纯只读展示 |
 | API | `/api/health`、`/api/players/zywoo` |
 | 设计 | 暗色、全屏、无照片，已有设计 Token 与响应式规范 |
 
@@ -30,10 +32,10 @@
 | 位置 | 问题 | 影响 |
 | --- | --- | --- |
 | `src/cs_player/content.py:12` | `PLAYER_FILES = ("zywoo.json",)` | 新增选手要改代码 |
-| `src/cs_player/app.py:198` | `/api/players/zywoo` 硬编码 | 无法按 slug 取选手 |
-| `src/cs_player/static/js/map.js:518` | 选择器只关闭菜单，不跳转 | 多选手入口是空壳 |
+| `src/cs_player/app.py:50` | `/api/players/zywoo` 路径硬编码 | 无法按 slug 取选手 |
+| `src/cs_player/static/js/map.js:618-621` | 选择器只关闭菜单，不跳转 | 多选手入口是空壳 |
 | `src/cs_player/data/zywoo.json` | 赛事字段和选手成绩混在一条 event | 同一赛事无法被多个选手复用 |
-| 全局 | 没有测试、没有 git 提交、没有 CSRF | 重构风险高，公网部署不安全 |
+| 全局 | 没有测试、只有 1 个 git 提交 | 重构风险高 |
 | 环境 | `starlette.testclient` 需要 `httpx2`，当前未安装 | 现在无法写接口测试 |
 | 工程 | `uv sync` 可能因旧 `.venv` 失败（见 `docs/STATUS.md`） | 新人拉项目起不来 |
 
@@ -63,7 +65,7 @@ v1 是一个很好的**垂直切片**，但它是按「单选手、事件流」�
 | 选手页 | 档案、成长章节、战队履历、赛事时间线、荣誉 |
 | 赛事页 | 日期、城市、场馆、主办方、奖金、冠军、参赛选手 |
 | 时间轴 | 年份范围 + 事件密度 + 地图联动 |
-| 账号 | 注册/登录/退出 + CSRF + 收藏选手/赛事 |
+| 账号 | **暂不做**（v2 保持纯只读，恢复时再按原方案补） |
 | 内容 | JSON schema + 校验脚本 + 单元测试 |
 
 推荐首发名单（按时代和地区搭配）：
@@ -80,6 +82,7 @@ v1 是一个很好的**垂直切片**，但它是按「单选手、事件流」�
 
 ### 2.4 非目标
 
+- 账号体系：注册 / 登录 / 退出 / 收藏 / CSRF —— v2 暂不做，保持纯只读展示。
 - 评论、点赞、用户投稿。
 - OAuth、邮箱验证、找回密码。
 - 原生 App、离线地图、VR/AR 地球。
@@ -242,11 +245,11 @@ src/cs_player/data/
 
 写一个一次性脚本 `scripts/migrate_v1.py`：
 
-1. 读 `zywoo.json` 的 27 条 event。
+1. 读 `zywoo.json` 的 84 条 event（82 条赛事 + 2 条里程碑）。
 2. `tags` 含 `milestone` 且没有 `matches` 的 2 条 → `chapters`。
-3. 其余 25 条 → 生成 `tournaments/*.json`，按 `title + 年份` 去重；`result`、`opponent`、`score`、`matches` → `appearances`。
+3. 其余 82 条 → 生成 `tournaments/*.json`，按 `title + 年份` 去重；`result`、`opponent`、`score`、`matches` → `appearances`。
 4. 手工补 `tier`、`game`、`winner_team_id`、`start_date`、`end_date`、`prize_pool_usd`。
-5. 迁移后用校验脚本对比：25 条赛事、139 场比赛、坐标数量不变。
+5. 迁移后用校验脚本对比：82 条赛事、398 场比赛、带坐标赛事数量（80 条）不变。
 
 这一步不要交给「自动推断」；`tier` 和冠军必须人工确认，否则历史数据会错。
 
@@ -276,13 +279,13 @@ src/cs_player/data/
 | 地图 | Globe.gl 2（Three.js）+ Natural Earth 国界 GeoJSON | v1 已验证；CDN 引入，无构建步骤；不要为地图引入 React |
 | 交互 | 原生 ES Modules | 无构建步骤，部署简单 |
 | 内容 | JSON + Pydantic 校验 | 可 diff、可 review、可回滚 |
-| 账号/收藏 | SQLite；需要时上 SQLAlchemy + Alembic | 写少读多，单机足够 |
+| 账号/收藏 | 暂不做；恢复时用 SQLite + SQLAlchemy + Alembic | 写少读多，单机足够 |
 | 部署 | Uvicorn + Caddy + Docker | 静态资源、HTTPS、反代一次搞定 |
 
 **地图方案（2026-11-18 确认，替代 Leaflet）：**
 
 - 渲染：Globe.gl 2（Three.js），jsDelivr CDN 引入，无前端构建步骤。
-- 底图：`src/cs_player/static/data/countries.geojson`（Natural Earth，177 个 feature），按国家多边形分块，由 `polygonsData` 承载。
+- 底图：`src/cs_player/static/data/countries.geojson`（Natural Earth，178 个 feature），按国家多边形分块，由 `polygonsData` 承载。
 - 交互：国家悬停高亮（`polygonCapColor` 等 accessor + 重新赋值触发重绘）；右侧面板（移动端底部抽屉）展示该国赛事；单击固定面板，点海洋 / `×` / Esc 取消。
 - 标记：`htmlElementsData` + `htmlElement` 渲染主办方徽标，每国一枚、列出该国全部主办方（按届数降序），做背面裁剪与屏幕空间去重。
 - 性能：国家多边形只加载一次；筛选时更新 data 与 accessor，不重建 Globe 实例。
@@ -309,7 +312,6 @@ src/cs_player/data/
 | `/tournaments` | 赛事列表：按年份、级别、地区筛选 |
 | `/tournaments/{slug}` | 赛事详情：信息 + 地图 + 参赛选手 + 赛果 |
 | `/timeline` | 编年史：按年代分组的纵向时间线 |
-| `/login` `/me` | 登录注册、个人页与收藏 |
 | `/admin`（P1） | 内容管理，非 MVP |
 
 ### 4.4 API
@@ -323,8 +325,6 @@ src/cs_player/data/
 | GET | `/api/map` | 轻量地图事件：`era`、`from`、`to`、`player` |
 | GET | `/api/timeline` | 年份桶 + 事件密度 |
 | GET | `/api/search` | 选手/赛事/城市联合搜索 |
-| POST/DELETE | `/api/favorites` | 收藏/取消收藏（需登录 + CSRF） |
-| GET | `/api/me/favorites` | 我的收藏 |
 
 地图接口只返回地球需要的字段（`id`、`name`、`date`、`city`、`country`、`lat`、`lng`、`tier`、`winner`、`player_ids`），**不要带 matches**。`country` 是地球按国家聚合的依据，不能省。详情在悬停/点击时再请求，控制首屏体积。
 
@@ -355,9 +355,8 @@ const state = {
 - [ ] 选手页：档案、5–7 个成长章节、战队履历、赛事时间线、荣誉、地图轨迹。
 - [ ] 赛事页：日期、城市、场馆、主办方、奖金、冠军、参赛选手、逐场赛果。
 - [ ] 时间轴：年份范围、事件密度、与地图联动、播放模式。
-- [ ] 账号：注册/登录/退出；CSRF；登录限流；收藏选手/赛事；`/me` 展示收藏。
 - [ ] 内容：Pydantic 校验、迁移脚本、派生统计、错误页。
-- [ ] 测试：内容校验单测、路由/鉴权/收藏集成测试。
+- [ ] 测试：内容校验单测、路由集成测试。
 
 ### P1（上线前尽量）
 
@@ -370,7 +369,7 @@ const state = {
 
 ### P2（以后）
 
-- 评论/点赞、用户投稿、OAuth、邮箱验证、音频故事、离线 PWA。
+- 账号体系（注册 / 登录 / CSRF / 收藏）、评论/点赞、用户投稿、OAuth、邮箱验证、音频故事、离线 PWA。
 
 ## 6. 阶段计划
 
@@ -381,12 +380,12 @@ const state = {
 | 2 | 多选手页面 | 选手/赛事路由；选择器跳转；选手页；赛事页；API 按 slug | `/players/{slug}`、`/tournaments/{slug}` | 3–4 天 |
 | 3 | 全局三维地球 | `/api/map` 接口；年代/年份筛选；标记去重与城市展开；URL 状态；详情懒加载 | 新版 `/` | 4–6 天 |
 | 4 | 时间轴与故事 | 底部时间轴；播放模式；选手页 scrollytelling；生涯飞线 | 时间轴组件、故事页 | 3–4 天 |
-| 5 | 账号增强 | CSRF；登录限流；收藏表；`/me`；权限字段 | 安全的账号体系 | 2–3 天 |
+| 5 | ~~账号增强~~ | **暂不做**：账号体系移出 v2 范围（保留设计见 §7.5） | — | — |
 | 6 | 上线 | SEO/OG；响应式/可达性；性能；Docker/Caddy；备份 | 可访问站点 | 2–3 天 |
 
-总计约 18–25 个工作日（单人）。内容研究是瓶颈：每位选手的资料的核对、写 5–7 段故事、补赛事元数据，通常要 1–2 天，建议与开发并行。
+总计约 16–22 个工作日（单人；已扣除暂不做的账号阶段）。内容研究是瓶颈：每位选手的资料的核对、写 5–7 段故事、补赛事元数据，通常要 1–2 天，建议与开发并行。
 
-**MVP 截断线：** 阶段 0–3 + 基础收藏 = 10–14 天。先上线「多选手地图 + 选手页 + 赛事页」，时间轴和 scrollytelling 可以第二批。
+**MVP 截断线：** 阶段 0–3 = 10–14 天。先上线「多选手地图 + 选手页 + 赛事页」，时间轴和 scrollytelling 可以第二批。
 
 ## 7. 关键实现细节
 
@@ -427,7 +426,7 @@ v2 赛事量上升后：
 - 点击章节时只高亮对应段，不要一次画 20 条线；
 - 飞线是氛围，不是主信息；默认关闭，提供「查看生涯轨迹」开关。
 
-### 7.5 账号与 CSRF
+### 7.5 账号与 CSRF（暂不做，保留设计）
 
 - 继续用 `SessionMiddleware`，不要改成 localStorage JWT。
 - 登录后生成 `csrf_token` 存 session；所有 POST 表单带 hidden input；服务端 `hmac.compare_digest` 校验。
@@ -438,11 +437,11 @@ v2 赛事量上升后：
 
 ### 7.6 性能
 
-- 国家 GeoJSON 约 839KB（177 个 feature），必须开 gzip；它只加载一次，不随筛选变化。
+- 国家 GeoJSON 约 839KB（178 个 feature），必须开 gzip；它只加载一次，不随筛选变化。
 - 现状把事件与 matches 一起内嵌在 `#map-events`；v2 改为 `/api/map` 只返回坐标级字段、详情懒加载，首屏 JSON 控制在 150KB 以内。
 - 开启 `GZipMiddleware`；静态资源加 `Cache-Control: max-age=31536000, immutable`（带 hash 文件名）或至少 7 天。
 - 图片用 `loading="lazy"` + `srcset`；没有图片就用渐变/单色块，不要空 `<img>`。
-- SQLite 开 WAL；用户查询加索引；内容用内存缓存。
+- SQLite 开 WAL（恢复账号后）；内容用内存缓存。
 
 ### 7.7 SEO
 
@@ -477,24 +476,24 @@ v2 赛事量上升后：
 
 - `httpx2` 加入 dev 依赖（Starlette TestClient 需要）。
 - 单元：内容校验、派生统计、日期/坐标边界。
-- 集成：`/players/{slug}` 200/404、筛选参数、登录/登出、CSRF 拒绝、收藏幂等。
-- E2E（Playwright，3 条即可）：地球加载并渲染国家与主办方图标；悬停国家出信息、单击后固定；登录后收藏并出现在 `/me`。
+- 集成：`/players/{slug}` 200/404、筛选参数（账号相关用例待恢复账号时再加）。
+- E2E（Playwright，2 条即可）：地球加载并渲染国家与主办方图标；悬停国家出信息、单击后固定。
 - CI：`ruff check` + `pytest` + `python scripts/validate_content.py`。
 
 ### 9.2 部署
 
 - `Dockerfile`：`python:3.14-slim`，非 root 用户，`uvicorn` 启动。
 - `docker-compose.yml`：`web` + `caddy`；`data/` 挂 volume；Caddy 负责 HTTPS 和静态缓存。
-- 环境变量：`CS_LEGENDS_SECRET`、`CS_LEGENDS_DB`、`CS_LEGENDS_HTTPS_ONLY=1`。
-- 备份：每天 `sqlite3 data/cs_legends.db ".backup ..."`，保留 7–30 天。
+- 环境变量：v2 无账号，暂不需要；恢复账号时再加 `CS_LEGENDS_SECRET`、`CS_LEGENDS_DB`、`CS_LEGENDS_HTTPS_ONLY=1`。
+- 备份：内容为 Git 中的 JSON，随提交即备份；恢复账号（SQLite）后再加每日 `sqlite3 ... ".backup"`，保留 7–30 天。
 - 监控：`/api/health` + UptimeRobot；错误用 Sentry（可选）。
-- 迁移：SQLite schema 变更用 Alembic 或简单的 `user_version` 迁移；不要手改生产库。
+- 迁移：SQLite schema 变更用 Alembic 或简单的 `user_version` 迁移；不要手改生产库（恢复账号后适用）。
 
 ## 10. 本周行动清单
 
 - [ ] `git add -A && git commit -m "chore: baseline v1"`，打 tag `v1.0`。
 - [ ] 写 `docs/content-schema.md`，把第 3 节的 JSON 约定固化成 Pydantic 模型。
-- [ ] 迁移 ZywOo：25 条赛事 → `tournaments/`，2 条里程碑 → `chapters`，139 场 → `appearances.matches`。
+- [ ] 迁移 ZywOo：82 条赛事 → `tournaments/`，2 条里程碑 → `chapters`，398 场 → `appearances.matches`。
 - [ ] 新增 s1mple 作为第二位选手，验证「同一赛事被多人引用」不会重复。
 - [ ] 实现 `/players/{slug}` 和选择器跳转，先不做时间轴。
 - [ ] 加 `scripts/validate_content.py` 和 3 条 pytest。

@@ -55,7 +55,7 @@
 
 - 库：Globe.gl 2（jsDelivr CDN），底层 Three.js。
 - 底图：`earth-night.jpg`（海洋夜景）+ `earth-topology.png` 凹凸，本地静态资源；大气层青色（`#5eead4`，`atmosphereAltitude 0.13`），页面底色为深空渐变。
-- 国家分块：`static/data/countries.geojson`（Natural Earth 110m，补充 50m 的马耳他）共 177 个国家/地区面，每块为独立多边形，曲率细分 3°。台湾地区并入「中华人民共和国」要素（同一 MultiPolygon 的独立环），不单独成国。
+- 国家分块：`static/data/countries.geojson`（Natural Earth 110m，补充马耳他与新加坡轮廓）共 178 个国家/地区面，每块为独立多边形，曲率细分 3°。台湾地区并入「中华人民共和国」要素（同一 MultiPolygon 的独立环），不单独成国。
   - 默认：面 `rgba(28,48,66,0.72)`（半透明，透出夜景纹理），侧面 `rgba(20,38,54,0.7)`，描边 `rgba(94,234,212,0.14)`，海拔 0.004。
   - 悬停：面 `rgba(74,222,128,0.34)`，侧面 `rgba(74,222,128,0.36)`，描边 `rgba(167,243,208,0.95)`，海拔抬升到 0.018。
   - 海拔切换动画 260ms（`polygonsTransitionDuration`），避免悬停时突兀跳变。

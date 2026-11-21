@@ -28,7 +28,7 @@ async def revalidate_static(request: Request, call_next):
 
 
 @app.get("/", response_class=HTMLResponse)
-def home(request: Request) -> HTMLResponse:
+def home(request: Request):
     events = content.get_events()
     return templates.TemplateResponse(
         request,
@@ -44,7 +44,7 @@ def home(request: Request) -> HTMLResponse:
 
 @app.get("/api/health")
 def health() -> dict[str, str]:
-    return {"status": "ok"}
+    return {"status": "ok", "source": content.current_source()}
 
 
 @app.get("/api/players/zywoo")

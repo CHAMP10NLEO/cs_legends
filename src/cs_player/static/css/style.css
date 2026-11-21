@@ -1266,6 +1266,37 @@ h2 {
   margin-bottom: 12px;
 }
 
+/* 赛果与标签徽章同一行，result 已覆盖的标签不重复渲染 */
+.event-flags {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.event-flags .detail-result {
+  margin: 0;
+}
+
+.event-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.badge--mvp {
+  border-color: rgba(167, 139, 250, 0.45);
+  background: rgba(167, 139, 250, 0.12);
+  color: #a78bfa;
+}
+
+.badge--notable {
+  border-color: rgba(148, 163, 184, 0.35);
+  background: rgba(148, 163, 184, 0.1);
+  color: #cbd5e1;
+}
+
 /* ---------- 主办方标记 ---------- */
 
 .map-marker {
