@@ -17,10 +17,10 @@ from sqlalchemy import JSON, Column, Date, DateTime, Enum, String, Text
 from sqlalchemy.dialects.mysql import BIGINT, DECIMAL, INTEGER, SMALLINT, TINYINT
 from sqlmodel import Field, SQLModel
 
-COUNTRY_KIND = Enum("country", "region", name="country_kind")
-MATCH_RESULT = Enum("胜", "负", name="match_result")
+COUNTRY_KIND = Enum("country", "region", name="country_kind")   # 国家/地区类型
+MATCH_RESULT = Enum("胜", "负", name="match_result")          # 比赛结果类型
 
-
+# 建sqlmodel模型，与数据库表对应
 class Country(SQLModel, table=True):
     """国家/地区字典。region 表示跨国赛区（如「欧洲赛区」）。"""
 

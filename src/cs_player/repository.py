@@ -17,7 +17,7 @@ from collections import defaultdict
 from sqlalchemy import Engine, create_engine, select
 from sqlmodel import Session
 
-from .config import db_url
+from .config import db_url, DB_URL_ENV
 from .models import (
     Appearance,
     AppearanceMatch,
@@ -30,39 +30,39 @@ from .models import (
     Tournament,
 )
 
-_engines: dict[str, Engine] = {}
+_engines: dict[str, Engine] = {}    # 缓存数据库引擎
 
 
-def get_engine() -> Engine:
-    url = db_url()
-    if url is None:
+def get_engine() -> Engine: 
+    url = db_url()  # 获取数据库url
+    if url is None:    # 如果url为空，抛出异常
         raise RuntimeError(f"{DB_URL_ENV} is not set")
-    engine = _engines.get(url)
-    if engine is None:
+    engine = _engines.get(url)  # 从缓存中获取数据库引擎      
+    if engine is None:    # 如果缓存中没有数据库引擎，创建新的数据库引擎
         engine = create_engine(url, pool_pre_ping=True, future=True)
         _engines[url] = engine
-    return engine
+    return engine   # 返回数据库引擎
 
 
-def _tournament_date_label(value) -> str:
+def _tournament_date_label(value) -> str:   # 格式化tournament日期为year.month
     """Tournaments show year.month, milestones show the full date."""
     return value.strftime("%Y.%m")
 
 
 def _first_player(session: Session, player_id: str | None) -> Player:
-    stmt = select(Player).order_by(Player.id)
-    if player_id:
+    stmt = select(Player).order_by(Player.id)   # 查询所有玩家，按id排序
+    if player_id:   # 如果提供了玩家id，添加筛选条件
         stmt = stmt.where(Player.id == player_id)
-    player = session.scalars(stmt).first()
-    if player is None:
-        raise LookupError("no player rows found")
-    return player
+    player = session.scalars(stmt).first()  # 查询第一个玩家
+    if player is None:  # 如果没有查询到玩家，抛出异常
+        raise LookupError(f"no player rows found for {player_id}")
+    return player   # 返回查询到的玩家
 
 
 def get_player(player_id: str | None = None) -> dict:
-    with Session(get_engine()) as session:
-        player = _first_player(session, player_id)
-        country = session.get(Country, player.country_id) if player.country_id else None
+    with Session(get_engine()) as session:  #创建数据库会话
+        player = _first_player(session, player_id)  # 查询选手
+        country = session.get(Country, player.country_id) if player.country_id else None    # 获取选手国家信息
         return {
             "id": player.id,
             "nickname": player.nickname,
@@ -81,11 +81,11 @@ def get_player(player_id: str | None = None) -> dict:
 
 
 def get_stats(player_id: str | None = None) -> dict:
-    with Session(get_engine()) as session:
-        player = _first_player(session, player_id)
-        stat = session.get(PlayerStat, player.id)
-        if stat is None:
-            raise LookupError(f"no player_stat row for {player.id}")
+    with Session(get_engine()) as session:  #创建数据库会话
+        player = _first_player(session, player_id)  # 查询选手
+        stat = session.get(PlayerStat, player.id)  # 查询选手统计信息
+        if stat is None:  # 如果没有查询到选手统计信息，抛出异常
+            raise LookupError(f"no player_stat row for {player_id}")
         return {
             "major_titles": stat.major_titles,
             "major_mvps": stat.major_mvps,
@@ -97,14 +97,14 @@ def get_stats(player_id: str | None = None) -> dict:
 
 
 def get_players() -> list[dict]:
-    with Session(get_engine()) as session:
-        active_id = _first_player(session, None).id
-        rows = session.execute(
+    with Session(get_engine()) as session:  #创建数据库会话
+        active_id = _first_player(session, None).id  # 查询第一个玩家，作为活跃玩家默认展示
+        rows = session.exec(    # 查询所有玩家，包括国家信息
             select(Player, Country)
             .outerjoin(Country, Country.id == Player.country_id)
             .order_by(Player.id)
         ).all()
-        return [
+        return [    # 格式化查询结果，返回玩家列表
             {
                 "id": player.id,
                 "nickname": player.nickname,
@@ -118,10 +118,10 @@ def get_players() -> list[dict]:
 
 def get_events(player_id: str | None = None) -> list[dict]:
     """Return every event (tournaments + milestones) as JSON-shaped dicts."""
-    with Session(get_engine()) as session:
-        player = _first_player(session, player_id)
+    with Session(get_engine()) as session:  # 创建数据库会话
+        player = _first_player(session, player_id)  # 查询选手
 
-        rows = session.execute(
+        rows = session.exec(    # 查询所有选手的出现记录，包括 tournament、country、organizer
             select(Appearance, Tournament, Country, Organizer)
             .join(Tournament, Tournament.id == Appearance.tournament_id)
             .join(Country, Country.id == Tournament.country_id)
@@ -130,15 +130,15 @@ def get_events(player_id: str | None = None) -> list[dict]:
             .order_by(Tournament.event_date, Tournament.id)
         ).all()
 
-        appearance_ids = [appearance.id for appearance, *_ in rows]
+        appearance_ids = [appearance.id for appearance, *_ in rows]  # 提取所有出现记录的id
 
-        matches: dict[int, list[dict]] = defaultdict(list)
-        in_matches = session.scalars(
+        matches: dict[int, list[dict]] = defaultdict(list)  # 初始化比赛字典
+        in_matches = session.exec(    # 查询所有选手的比赛记录
             select(AppearanceMatch)
             .where(AppearanceMatch.appearance_id.in_(appearance_ids))
             .order_by(AppearanceMatch.appearance_id, AppearanceMatch.seq)
-        )
-        for match in in_matches:
+        ).all()
+        for match in in_matches:  # 遍历所有比赛记录
             matches[match.appearance_id].append(
                 {
                     "stage": match.stage or "",
@@ -148,16 +148,16 @@ def get_events(player_id: str | None = None) -> list[dict]:
                 }
             )
 
-        tags: dict[int, list[str]] = defaultdict(list)
-        in_tags = session.scalars(
+        tags: dict[int, list[str]] = defaultdict(list)  # 初始化标签字典
+        in_tags = session.scalars(  # 查询所有选手的标签记录
             select(AppearanceTag)
             .where(AppearanceTag.appearance_id.in_(appearance_ids))
             .order_by(AppearanceTag.appearance_id, AppearanceTag.seq, AppearanceTag.tag_code)
         )
-        for link in in_tags:
+        for link in in_tags:  # 遍历所有标签记录
             tags[link.appearance_id].append(link.tag_code)
 
-        events: list[dict] = [
+        events: list[dict] = [  # 格式化查询结果，返回事件列表
             {
                 "id": tournament.id,
                 "date": tournament.event_date.isoformat(),
@@ -180,13 +180,13 @@ def get_events(player_id: str | None = None) -> list[dict]:
             for appearance, tournament, country, organizer in rows
         ]
 
-        milestone_rows = session.execute(
+        milestone_rows = session.exec(  # 查询所有选手的里程碑记录
             select(Milestone, Country)
             .outerjoin(Country, Country.id == Milestone.country_id)
             .where(Milestone.player_id == player.id)
             .order_by(Milestone.event_date, Milestone.slug)
         ).all()
-        events.extend(
+        events.extend(  # 合并所有里程碑记录
             {
                 "id": milestone.slug,
                 "date": milestone.event_date.isoformat(),

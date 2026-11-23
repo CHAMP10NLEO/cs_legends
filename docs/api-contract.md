@@ -85,6 +85,7 @@ Base URL：`http://127.0.0.1:8000`
 - `tags` 取值：`major`、`champion`、`mvp`、`milestone`、`notable`。
 - `tag_labels` 是 `tags` 的展示映射，元素为 `{ key, label }`：`key` 同 `tags`，`label` 为中文文案。未知标签会被忽略，因此两个数组长度可能不一致；前端应直接遍历 `tag_labels`。
 - 响应与数据源无关：**MySQL 是主数据源**（`CS_LEGENDS_DB_URL` / `.env`），数据库不可达时回退到内置 JSON；两种模式的 JSON 输出逐字节一致（见 `scripts/check_parity.py`）。
+- 缓存出来的数据一律当只读用，要改就先拷贝一份。
 
 ## 3. 账号接口（本期不提供）
 
