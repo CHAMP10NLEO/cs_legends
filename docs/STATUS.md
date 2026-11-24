@@ -1,9 +1,13 @@
 # 项目状态
 
-更新：2026-11-19
+更新：2026-11-21
 
 ## 本轮结论
 
+- 2026-11-21 数据源切为 **MySQL 为准**：新增 `src/cs_player/config.py`（`.env` 自动加载 + `CS_LEGENDS_DB_URL` / `CS_LEGENDS_DATA_SOURCE`）、`.env.example`；默认读 MySQL，连接失败或未配置时回退内置 JSON 并打 warning（30 秒后自动重试库），`/api/health` 增加 `source` 字段暴露实际来源。实测两种模式 `/api/players/zywoo` 的 SHA256 相同、`/` 的 HTML 除端口外一致，DB 模式端到端 ~55ms（API）/ ~70ms（页面），与 JSON 模式同量级。
+- 2026-11-21 文档事实校正：当前口径文档（`README.md`、`docs/PRD.md`、`docs/api-contract.md`、`docs/design-spec.md`、`docs/ROADMAP-v2.md`）中的旧口径「27 条生涯节点 / 25 条赛事 / 139 场」统一改为实际值——**84 条记录（82 条赛事 + 2 条里程碑）、398 场逐场赛果**，赛果截至 2026-11-15，带坐标赛事覆盖 **22 个国家/地区**；国界要素数由 177 改为 **178**（补充新加坡与马耳他轮廓）；移除 README/PRD 中已删除的 SQLite 与签名 Cookie 会话描述。本文件下方的任务卡目标与逐轮自测记录属历史记录，保留当时数字。
+- 2026-11-21 范围决策：**v2 暂不做账号体系**（注册 / 登录 / 退出 / 收藏 / CSRF）。`docs/ROADMAP-v2.md` 中相关页面、接口、P0 项、阶段 5、CSRF 与账号测试条目全部标记为「暂不做」，阶段计划总工时相应下调。
+- 2026-11-21 数据层可选 MySQL（SQLModel）：新增 `docs/db-schema.sql`（10 张表 + `v_appearance` 视图）、`scripts/gen_seed.py`（JSON → `scripts/seed.sql`）、`src/cs_player/models.py`（SQLModel 表模型）、`src/cs_player/repository.py`（SQLModel 查询层）；`src/cs_player/content.py` 改为按环境变量 `CS_LEGENDS_DB_URL` 分派 **JSON 或 MySQL** 双源，未设置时行为与之前完全相同。已灌库并校验：两种模式的 `/api/players/zywoo` 响应逐字节一致、`/` 渲染一致（`scripts/check_parity.py` 输出 PARITY OK）。
 - 首页已从「Hero + 地图 + 时间线 + 荣誉墙」改为**全屏三维地球**（Globe.gl）。
 - 左上角新增选手选择器（当前仅 ZywOo），为后续选手预留入口。
 - 25 条赛事数据补齐 `organizer` 与 `matches`，共 139 场逐场赛果。
@@ -17,7 +21,7 @@
 - 2026-11-19 地球视觉打磨：国家面改为半透明（`0.72` / 举办国 `0.9`），透出 `earth-night.jpg` 城市灯光；悬停面降至 `0.34` 并配亮色描边；大气层改青色 `#5eead4`；球体加高光材质与左后下方轮廓光；页面加星空调点阵 + 三层色雾 + 径向暗角；主办方徽标加同色辉光与 4px 锚点；海拔过渡 260ms、曲率细分 3°；画布首帧 800ms 淡入；悬停有赛事国家时光标变 `pointer`。
 - 2026-11-19 UI 降噪（unslop）：删除登录页的模拟雷达、扫描线、准星、假 HUD（`TACTICAL ARCHIVE` / `DE_DUST2 · 1:55`）与彩色光团，改为星点 + 一条行星球体地平线弧线；登录表单收进 400px 半透明面板。全站统一圆角（面板 16 / 卡片 14 / 控件 10），去掉 999px 胶囊按钮、`translateY` 位移动效、彩色外发光与 700/800 粗体；`@用户名` 改为进入 `/me` 的链接；个人页去掉 ACCOUNT 眉题、状态胶囊与 PBKDF2 实现细节，删除指向已移除锚点的「继续看时间线」死链。（该阶段页面已在本轮移除）
 - 2026-11-19 移除登录功能：删除 `/login`、`/auth/login`、`/auth/register`、`/auth/logout`、`/me`、`/api/me` 路由，删除 `auth.py`、`db.py`、`login.html`、`me.html` 与 SessionMiddleware；地图页右上角账号入口、登录/退出按钮、`@用户名` 链接全部移除。站点改为纯只读展示，`/login`、`/me`、`/api/me` 返回 404。
-- 2026-11-19 依赖精简：`pyproject.toml` 移除 `python-multipart`（表单解析）与 `itsdangerous`（会话签名），`uv lock` 后直接依赖仅保留 `fastapi`、`uvicorn`、`jinja2`。
+- 2026-11-19 依赖精简：`pyproject.toml` 移除 `python-multipart`（表单解析）与 `itsdangerous`（会话签名），`uv lock` 后直接依赖仅保留 `fastapi`、`uvicorn`、`jinja2`；2026-11-21 因 MySQL 主数据源新增 `sqlmodel`、`pymysql`。
 - 2026-11-19 赛事数据补全：按 HLTV 统计页 `matchType=BigEvents` 口径（79 届 Big Events）把 ZywOo 出道以来参加过的全部 Big Event 补进 `data/zywoo.json`，新增 57 届、259 场逐场赛果，合并后共 84 条记录（82 条赛事 + 2 条里程碑）、398 场逐场赛果。原 22 届 Big Event 与 3 条非 Big Event 历史条目（cs_summit 4、IEM Beijing-Haidian 2020 Europe、BLAST Premier Fall 2020 Finals）保留。
 - 2026-11-19 数据口径说明：逐场赛果取自 HLTV 战队赛果页（`?team=9565&startDate/endDate`），只保留 Big Event 行并排除 RMR、Closed Qualifier、BLAST Bounty 线上阶段等非 Big Event 场次；Major 的 Challengers Stage 与 IEM Cologne 的 Play-in 归入同一届赛事。赛事城市/国家/场馆/主办方/起止日期取自 Liquipedia infobox（Malmö 2019、IEM Kraków 2026 为人工核对补录）。
 - 2026-11-19 前端适配：新增赛事无逐场 `stage` 时列表自动切为三列（`match-list--plain`），不再出现空列；场馆缺失显示「未记录」而非误显示「线上赛」；城市名统一为中文。
@@ -142,7 +146,7 @@
 6. **数据时效**：赛果截至 2026-11-15（BLAST Rivals 2026 Season 2），后续赛事需更新 JSON。
 7. **数据口径**：BO1 使用地图比分，BO3/BO5 使用系列赛比分；逐场数据来自公开赛事页，若官方修订以官方为准。新增的 57 届赛事逐场记录没有 `stage` 字段（HLTV 赛果页不提供阶段），列表以三列呈现；原 22 届赛事的阶段信息保留。
 8. **文档冲突（已解决）**：2026-11-18 确认三维地球为唯一基线方案，`docs/ROADMAP-v2.md` 已同步（技术栈、现状、非目标、技术方案、阶段 3、§7 实现细节、版权表、E2E 全部改为 Globe.gl；原「3D 地球列为非目标」与 Leaflet/瓦片表述已删除），并写入决策记录。
-9. **验证缺口（T13）**：本轮工具 Shell 会话在后台启动 uvicorn 后无法再启动任何进程，服务端冒烟测试与页面截图未能执行；数据与前端改动均已通过 JSON 解析、覆盖率校验与 `node --check`。重启 IDE 后需补跑一次启动自测。
+9. **验证缺口（T13）**：本轮工具 Shell 会话在后台启动 uvicorn 后无法再启动任何进程，服务端冒烟测试与页面截图未能执行；数据与前端改动均已通过 JSON 解析、覆盖率校验与 `node --check`。**2026-11-19 已补跑**：`/`、`/api/health`、`/api/players/zywoo`（84 条 / 398 场）、`countries.geojson`、`map.js` 均返回 200。
 10. **日期口径**：赛事 `date` 取 Liquipedia 结束日期（`edate`），与 HLTV 最后一场比赛日期可能相差 1 天（时区/赛程表差异）；`date_label` 只精确到月，不影响展示。
 11. **新加坡轮廓为近似值**：底图缺少新加坡，补充的多边形是按经纬度范围手绘的近似轮廓，仅用于球面命中与高亮，不代表精确国界。
 

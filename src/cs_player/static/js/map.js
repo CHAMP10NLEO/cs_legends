@@ -289,6 +289,37 @@
     );
   }
 
+  var TAG_MODIFIER = {
+    major: "badge--major",
+    champion: "badge--win",
+    mvp: "badge--mvp",
+    milestone: "badge--milestone",
+    notable: "badge--notable"
+  };
+
+  // result 文本里已经写明的标签（如「冠军 · MVP」）不再重复成徽章。
+  function tagsHtml(event) {
+    var labels = event.tag_labels || [];
+    var result = event.result || "";
+    var badges = labels
+      .filter(function (tag) {
+        return result.indexOf(tag.label) === -1;
+      })
+      .map(function (tag) {
+        var modifier = TAG_MODIFIER[tag.key];
+        return (
+          '<span class="badge' +
+          (modifier ? " " + modifier : "") +
+          '">' +
+          escapeHtml(tag.label) +
+          "</span>"
+        );
+      })
+      .join("");
+    if (!badges) return "";
+    return '<div class="event-tags">' + badges + "</div>";
+  }
+
   function eventBlockHtml(event) {
     var place = [event.city, event.country].filter(Boolean).join(" · ");
     var organizer = event.organizer || "未记录";
@@ -304,11 +335,14 @@
       '<h3 class="country-event__title">' +
       escapeHtml(event.title) +
       "</h3>" +
+      '<div class="event-flags">' +
       '<p class="detail-result ' +
       resultClass(event) +
       '">' +
       escapeHtml(event.result) +
       "</p>" +
+      tagsHtml(event) +
+      "</div>" +
       '<dl class="detail-meta">' +
       "<div><dt>主办方</dt><dd>" +
       escapeHtml(organizer) +
