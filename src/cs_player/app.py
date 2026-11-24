@@ -30,8 +30,8 @@ async def revalidate_static(request: Request, call_next):
 
 @app.get("/", response_class=HTMLResponse)  # 首页路由
 def home(request: Request):  
-    events = content.get_events()
-    return templates.TemplateResponse(
+    events = content.get_events()   # 获取所有事件
+    return templates.TemplateResponse(  # 渲染HTML模板
         request,
         "index.html",
         {
@@ -43,13 +43,13 @@ def home(request: Request):
     )
 
 
-@app.get("/api/health")
-def health() -> dict[str, str]:
+@app.get("/api/health")  # 健康检查路由
+def health() -> dict[str, str]:   # 返回健康状态
     return {"status": "ok", "source": content.current_source()}
 
 
-@app.get("/api/players/zywoo")
-def player_api() -> JSONResponse:
+@app.get("/api/players/zywoo")  # 选手API路由
+def player_api() -> JSONResponse:   # 获取选手信息
     return JSONResponse(
         {
             "player": content.get_player(),
@@ -59,7 +59,7 @@ def player_api() -> JSONResponse:
     )
 
 
-def main() -> None:
+def main() -> None:   # 主函数，用于启动FastAPI应用
     import uvicorn
 
     uvicorn.run("cs_player.app:app", host="127.0.0.1", port=8000, reload=False)

@@ -1,6 +1,6 @@
 """Generate scripts/seed.sql from src/cs_player/data/zywoo.json.
 
-纯标准库实现（.venv 里没有 SQLAlchemy / PyMySQL），产出可重复执行的 INSERT 脚本：
+产出可重复执行的 INSERT 脚本：
 
     .venv\\Scripts\\python.exe -X utf8 scripts\\gen_seed.py
     mysql -h 127.0.0.1 -u root --default-character-set=utf8mb4 cs_legends < scripts\\seed.sql
@@ -13,9 +13,9 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent
-DATA_FILE = ROOT / "src" / "cs_player" / "data" / "zywoo.json"
-OUT_FILE = Path(__file__).resolve().parent / "seed.sql"
+ROOT = Path(__file__).resolve().parent.parent   # 项目根目录
+DATA_FILE = ROOT / "src" / "cs_player" / "data" / "zywoo.json"   # 数据文件路径
+OUT_FILE = Path(__file__).resolve().parent / "seed.sql"   # 输出文件路径
 
 # 与 src/cs_player/content.py 的 TAG_LABELS 保持一致
 TAG_LABELS = {
@@ -44,57 +44,57 @@ COUNTRY_EN = {"法国": "France"}
 REGIONS = {"欧洲赛区"}
 
 
-def q(value: object) -> str:
+def q(value: object) -> str:    # SQL字面值化函数
     """SQL literal."""
-    if value is None:
+    if value is None:   # 处理 None 值
         return "NULL"
-    if isinstance(value, bool):
+    if isinstance(value, bool):   # 处理布尔值
         return "1" if value else "0"
-    if isinstance(value, (int, float)):
+    if isinstance(value, (int, float)):   # 处理整数和浮点数
         return str(value)
-    text = str(value).replace("\\", "\\\\").replace("'", "''")
+    text = str(value).replace("\\", "\\\\").replace("'", "''")   # 处理字符串中的转义字符和单引号
     return f"'{text}'"
 
 
-def qjson(value: object) -> str:
-    if value is None:
+def qjson(value: object) -> str:    # JSON字面值化函数
+    if value is None:   # 处理 None 值
         return "NULL"
     return q(json.dumps(value, ensure_ascii=False))
 
 
 def insert_block(table: str, columns: list[str], rows: list[list[str]], chunk: int = 100) -> str:
-    if not rows:
+    if not rows:    # 处理空表
         return f"-- {table}: 0 rows\n"
-    head = f"INSERT INTO {table} ({', '.join(columns)}) VALUES\n"
+    head = f"INSERT INTO {table} ({', '.join(columns)}) VALUES\n"   # 生成 INSERT 语句头
     out: list[str] = []
-    for start in range(0, len(rows), chunk):
-        body = ",\n".join("  (" + ", ".join(row) + ")" for row in rows[start : start + chunk])
-        out.append(head + body + ";\n")
+    for start in range(0, len(rows), chunk):     # 分块处理数据
+        body = ",\n".join("  (" + ", ".join(row) + ")" for row in rows[start : start + chunk])  # 生成 VALUES 语句体
+        out.append(head + body + ";\n") #完整的 INSERT 语句
     return "".join(out)
 
 
 def main() -> None:
-    data = json.loads(DATA_FILE.read_text(encoding="utf-8"))
-    player = data["player"]
-    stats = data["stats"]
-    events = sorted(data["events"], key=lambda e: (e["date"], e["id"]))
+    data = json.loads(DATA_FILE.read_text(encoding="utf-8"))    # 读取 JSON文件
+    player = data["player"]    # 提取选手数据
+    stats = data["stats"]    # 提取选手统计数据
+    events = sorted(data["events"], key=lambda e: (e["date"], e["id"]))    # 排序事件数据
 
-    tournaments = [e for e in events if e.get("matches")]
-    milestones = [e for e in events if not e.get("matches")]
+    tournaments = [e for e in events if e.get("matches")]    # 筛选出有比赛的事件
+    milestones = [e for e in events if not e.get("matches")]    # 筛选出无比赛的事件
 
     # ---- country -----------------------------------------------------------
-    country_names = sorted({e["country"] for e in events} | {player["country_cn"]})
-    country_id = {name: i for i, name in enumerate(country_names, start=1)}
-    country_rows = [
+    country_names = sorted({e["country"] for e in events} | {player["country_cn"]})    # 提取所有国家名称
+    country_id = {name: i for i, name in enumerate(country_names, start=1)}    # 生成国家ID映射
+    country_rows = [     # 生成国家数据行
         [str(country_id[n]), q(n), q(COUNTRY_EN.get(n)), q("region" if n in REGIONS else "country")]
         for n in country_names
     ]
 
     # ---- organizer ---------------------------------------------------------
-    org_names = sorted({e["organizer"] for e in tournaments if e.get("organizer")})
-    org_id = {name: i for i, name in enumerate(org_names, start=1)}
+    org_names = sorted({e["organizer"] for e in tournaments if e.get("organizer")})    # 提取所有主办方名称
+    org_id = {name: i for i, name in enumerate(org_names, start=1)}    # 生成主办方ID映射
     org_rows = []
-    for name in org_names:
+    for name in org_names:    # 生成主办方数据行
         meta = ORGANIZER_META.get(name, {})
         org_rows.append([str(org_id[name]), q(name), q(meta.get("short")), q(meta.get("color"))])
 
