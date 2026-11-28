@@ -229,3 +229,54 @@ FROM appearance a
 JOIN tournament t ON t.id = a.tournament_id
 JOIN country c    ON c.id = t.country_id
 LEFT JOIN organizer o ON o.id = t.organizer_id;
+
+-- ---------------------------------------------------------------------------
+-- 账号（可选模块，与内容表无外键关系）
+-- 已在用的库请单独执行 docs/auth-schema.sql；本文件会 DROP 内容表，勿重跑。
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS app_user (
+  id            BIGINT UNSIGNED AUTO_INCREMENT,
+  email         VARCHAR(160) NOT NULL,
+  username      VARCHAR(32)  NOT NULL,
+  password_hash VARCHAR(255) NOT NULL COMMENT 'argon2id，含算法与参数前缀',
+  display_name  VARCHAR(64)  NULL,
+  role          ENUM('user','admin') NOT NULL DEFAULT 'user',
+  is_active     TINYINT(1)   NOT NULL DEFAULT 1,
+  token_version INT UNSIGNED NOT NULL DEFAULT 0,
+  last_login_at DATETIME     NULL,
+  created_at    TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at    TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_user_email (email),
+  UNIQUE KEY uk_user_username (username)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+  COMMENT='站点账号';
+
+CREATE TABLE IF NOT EXISTS refresh_token (
+  id          BIGINT UNSIGNED AUTO_INCREMENT,
+  user_id     BIGINT UNSIGNED NOT NULL,
+  token_hash  CHAR(64) NOT NULL,
+  issued_at   TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  expires_at  DATETIME  NOT NULL,
+  revoked_at  DATETIME  NULL,
+  replaced_by CHAR(64)  NULL,
+  user_agent  VARCHAR(200) NULL,
+  ip          VARCHAR(45)  NULL,
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_refresh_hash (token_hash),
+  KEY idx_refresh_user (user_id),
+  CONSTRAINT fk_refresh_user FOREIGN KEY (user_id) REFERENCES app_user (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+  COMMENT='刷新令牌（哈希存储，轮换）';
+
+CREATE TABLE IF NOT EXISTS login_attempt (
+  id         BIGINT UNSIGNED AUTO_INCREMENT,
+  identifier VARCHAR(160) NOT NULL COMMENT '邮箱或用户名，统一小写',
+  ip         VARCHAR(45)  NOT NULL,
+  success    TINYINT(1)   NOT NULL,
+  created_at TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY idx_attempt_lookup (identifier, created_at),
+  KEY idx_attempt_ip (ip, created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+  COMMENT='登录尝试（限流用）';

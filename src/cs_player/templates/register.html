@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}注册 · CS Legends{% endblock %}
+{% block body_class %}body-auth{% endblock %}
+
+{% block content %}
+<section class="auth-card" aria-labelledby="auth-title">
+  <p class="auth-card__eyebrow">Account</p>
+  <h1 id="auth-title">注册</h1>
+  <p class="auth-card__lead">只需要邮箱、用户名和密码。暂不提供邮箱验证与找回密码。</p>
+
+  {% if error %}
+  <p class="auth-alert auth-alert--error">{{ error }}</p>
+  {% endif %}
+
+  <form class="auth-form" method="post" action="/auth/register" novalidate>
+    <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
+    <input type="hidden" name="next" value="{{ next }}">
+    <label class="auth-field">
+      <span>邮箱</span>
+      <input type="email" name="email" autocomplete="email" required
+             value="{{ form.email or '' }}">
+    </label>
+    <label class="auth-field">
+      <span>用户名</span>
+      <input type="text" name="username" autocomplete="username" required minlength="3" maxlength="32"
+             value="{{ form.username or '' }}">
+    </label>
+    <label class="auth-field">
+      <span>密码</span>
+      <input type="password" name="password" autocomplete="new-password" required minlength="8">
+      <small>至少 8 位，需同时包含字母和数字。</small>
+    </label>
+    <label class="auth-field">
+      <span>确认密码</span>
+      <input type="password" name="password_confirm" autocomplete="new-password" required minlength="8">
+    </label>
+    <button type="submit" class="auth-submit">创建账号</button>
+  </form>
+
+  <p class="auth-card__foot">已经有账号了？<a href="/login?next={{ next }}">直接登录</a></p>
+</section>
+{% endblock %}

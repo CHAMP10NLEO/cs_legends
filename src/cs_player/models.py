@@ -13,12 +13,13 @@ from __future__ import annotations
 from datetime import date, datetime
 from decimal import Decimal
 
-from sqlalchemy import JSON, Column, Date, DateTime, Enum, String, Text
+from sqlalchemy import CHAR, JSON, Column, Date, DateTime, Enum, String, Text
 from sqlalchemy.dialects.mysql import BIGINT, DECIMAL, INTEGER, SMALLINT, TINYINT
 from sqlmodel import Field, SQLModel
 
 COUNTRY_KIND = Enum("country", "region", name="country_kind")   # 国家/地区类型
 MATCH_RESULT = Enum("胜", "负", name="match_result")          # 比赛结果类型
+USER_ROLE = Enum("user", "admin", name="user_role")           # 账号角色
 
 # 建sqlmodel模型，与数据库表对应
 class Country(SQLModel, table=True):
@@ -172,3 +173,58 @@ class Milestone(SQLModel, table=True):
     venue: str | None = Field(default=None, sa_column=Column("venue", String(160)))
     summary: str | None = Field(default=None, sa_column=Column("summary", Text))
     source_note: str | None = Field(default=None, sa_column=Column("source_note", String(160)))
+
+
+class User(SQLModel, table=True):
+    """站点账号。token_version 自增一次即可让该用户所有已签发 JWT 失效。"""
+
+    __tablename__ = "app_user"
+
+    id: int | None = Field(
+        default=None,
+        sa_column=Column("id", BIGINT(unsigned=True), primary_key=True, autoincrement=True),
+    )
+    email: str = Field(sa_column=Column("email", String(160), nullable=False, unique=True))
+    username: str = Field(sa_column=Column("username", String(32), nullable=False, unique=True))
+    password_hash: str = Field(sa_column=Column("password_hash", String(255), nullable=False))
+    display_name: str | None = Field(default=None, sa_column=Column("display_name", String(64)))
+    role: str = Field(default="user", sa_column=Column("role", USER_ROLE, nullable=False))
+    is_active: bool = Field(default=True, sa_column=Column("is_active", TINYINT(1), nullable=False))
+    token_version: int = Field(default=0, sa_column=Column("token_version", INTEGER(unsigned=True), nullable=False))
+    last_login_at: datetime | None = Field(default=None, sa_column=Column("last_login_at", DateTime))
+    created_at: datetime | None = Field(default=None, sa_column=Column("created_at", DateTime))
+    updated_at: datetime | None = Field(default=None, sa_column=Column("updated_at", DateTime))
+
+
+class RefreshToken(SQLModel, table=True):
+    """refresh token 只存 sha256；replaced_by 记录轮换链，用于检测重放。"""
+
+    __tablename__ = "refresh_token"
+
+    id: int | None = Field(
+        default=None,
+        sa_column=Column("id", BIGINT(unsigned=True), primary_key=True, autoincrement=True),
+    )
+    user_id: int = Field(sa_column=Column("user_id", BIGINT(unsigned=True), nullable=False))
+    token_hash: str = Field(sa_column=Column("token_hash", CHAR(64), nullable=False, unique=True))
+    issued_at: datetime | None = Field(default=None, sa_column=Column("issued_at", DateTime))
+    expires_at: datetime = Field(sa_column=Column("expires_at", DateTime, nullable=False))
+    revoked_at: datetime | None = Field(default=None, sa_column=Column("revoked_at", DateTime))
+    replaced_by: str | None = Field(default=None, sa_column=Column("replaced_by", CHAR(64)))
+    user_agent: str | None = Field(default=None, sa_column=Column("user_agent", String(200)))
+    ip: str | None = Field(default=None, sa_column=Column("ip", String(45)))
+
+
+class LoginAttempt(SQLModel, table=True):
+    """登录尝试记录，供「15 分钟内 5 次失败」限流使用。"""
+
+    __tablename__ = "login_attempt"
+
+    id: int | None = Field(
+        default=None,
+        sa_column=Column("id", BIGINT(unsigned=True), primary_key=True, autoincrement=True),
+    )
+    identifier: str = Field(sa_column=Column("identifier", String(160), nullable=False))
+    ip: str = Field(sa_column=Column("ip", String(45), nullable=False))
+    success: bool = Field(sa_column=Column("success", TINYINT(1), nullable=False))
+    created_at: datetime | None = Field(default=None, sa_column=Column("created_at", DateTime))

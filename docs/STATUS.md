@@ -1,9 +1,12 @@
 # 项目状态
 
-更新：2026-11-21
+更新：2026-11-25
 
 ## 本轮结论
 
+- 2026-11-25 基础账号上线（**取代**上方 2026-11-21「v2 暂不做账号」的范围决策）：OAuth2 密码模式 + JWT。新增 `src/cs_player/security.py`（argon2id、HS256 access token、HttpOnly Cookie、CSRF）、`accounts.py`（注册/认证/刷新轮换与重放吊销/限流）、`auth.py`（`/login`、`/register`、`/account`、`POST /auth/login|register|token|refresh|logout`、`GET /api/me`）、`templates/_account.html` 与三个账号页、`docs/auth-schema.sql`（`app_user` / `refresh_token` / `login_attempt` 三表，`CREATE TABLE IF NOT EXISTS` 增量应用）；`app.py` 挂 router + 下发 CSRF Cookie，`base.html` / `index.html` 加账号入口，`style.css` 加账号样式。只做登录态，**不含**收藏/评论等业务，也不含邮箱验证与找回密码。
+- 2026-11-25 自检：`scripts/check_auth.py` 22 项全过（注册、重复注册 409、弱密码 422、argon2 哈希前缀、表单登录 + Cookie、`/api/me`、Bearer、`/auth/token`、refresh 轮换、旧 refresh 重放被拒并吊销整链、`/auth/logout`、未登录 `/account` 302、CSRF 403、5 次失败 429）；`scripts/check_parity.py` 仍 PARITY OK；8051 冒烟 `/` `/login` `/register` 200、`/account` 303、`/api/health` 200 `source=db`、`/api/me` 401、`/api/players/zywoo` 200。
+- 2026-11-25 顺手修复既有 bug：`src/cs_player/repository.py` 用 `session.exec()` 取 `AppearanceMatch` 在 SQLAlchemy 2.1 下返回 Row，导致 DB 模式首页 `KeyError: 'appearance_id'`（500）——改为 `session.scalars()`。
 - 2026-11-21 数据源切为 **MySQL 为准**：新增 `src/cs_player/config.py`（`.env` 自动加载 + `CS_LEGENDS_DB_URL` / `CS_LEGENDS_DATA_SOURCE`）、`.env.example`；默认读 MySQL，连接失败或未配置时回退内置 JSON 并打 warning（30 秒后自动重试库），`/api/health` 增加 `source` 字段暴露实际来源。实测两种模式 `/api/players/zywoo` 的 SHA256 相同、`/` 的 HTML 除端口外一致，DB 模式端到端 ~55ms（API）/ ~70ms（页面），与 JSON 模式同量级。
 - 2026-11-21 文档事实校正：当前口径文档（`README.md`、`docs/PRD.md`、`docs/api-contract.md`、`docs/design-spec.md`、`docs/ROADMAP-v2.md`）中的旧口径「27 条生涯节点 / 25 条赛事 / 139 场」统一改为实际值——**84 条记录（82 条赛事 + 2 条里程碑）、398 场逐场赛果**，赛果截至 2026-11-15，带坐标赛事覆盖 **22 个国家/地区**；国界要素数由 177 改为 **178**（补充新加坡与马耳他轮廓）；移除 README/PRD 中已删除的 SQLite 与签名 Cookie 会话描述。本文件下方的任务卡目标与逐轮自测记录属历史记录，保留当时数字。
 - 2026-11-21 范围决策：**v2 暂不做账号体系**（注册 / 登录 / 退出 / 收藏 / CSRF）。`docs/ROADMAP-v2.md` 中相关页面、接口、P0 项、阶段 5、CSRF 与账号测试条目全部标记为「暂不做」，阶段计划总工时相应下调。

@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}账号 · CS Legends{% endblock %}
+{% block body_class %}body-auth{% endblock %}
+
+{% block content %}
+<section class="auth-card" aria-labelledby="auth-title">
+  <p class="auth-card__eyebrow">Account</p>
+  <h1 id="auth-title">{{ user.display_name or user.username }}</h1>
+
+  <dl class="auth-facts">
+    <div><dt>用户名</dt><dd>{{ user.username }}</dd></div>
+    <div><dt>邮箱</dt><dd>{{ user.email }}</dd></div>
+    <div><dt>角色</dt><dd>{{ '管理员' if user.role == 'admin' else '普通用户' }}</dd></div>
+    <div><dt>注册时间</dt><dd>{{ created_at or '—' }}</dd></div>
+    <div><dt>上次登录</dt><dd>{{ last_login_at or '—' }}</dd></div>
+  </dl>
+
+  <div class="auth-actions">
+    <form method="post" action="/auth/logout">
+      <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
+      <button type="submit" class="auth-submit auth-submit--ghost">退出登录</button>
+    </form>
+    <a class="auth-submit auth-submit--link" href="/">回到世界地图</a>
+  </div>
+</section>
+{% endblock %}
