@@ -17,9 +17,12 @@
       <span class="brand__mark">CS</span>
       <span class="brand__text">LEGENDS</span>
     </a>
-    <nav class="site-nav" aria-label="主导航">
-      <a href="/">世界地图</a>
-    </nav>
+    <div class="site-header__side">
+      <nav class="site-nav" aria-label="主导航">
+        <a href="/">世界地图</a>
+      </nav>
+      <div class="account-slot">{% include "_account.html" %}</div>
+    </div>
   </header>
   {% endblock %}
 

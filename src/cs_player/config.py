@@ -18,6 +18,17 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]  # 项目根目录
 
 DB_URL_ENV = "CS_LEGENDS_DB_URL"  # 数据库连接字符串环境变量名
 SOURCE_ENV = "CS_LEGENDS_DATA_SOURCE"  # 数据来源环境变量名
+JWT_SECRET_ENV = "CS_LEGENDS_JWT_SECRET"  # JWT 签名密钥环境变量名
+ENVIRONMENT_ENV = "CS_LEGENDS_ENV"  # 运行环境（prod / dev）环境变量名
+COOKIE_SECURE_ENV = "CS_LEGENDS_COOKIE_SECURE"  # 强制 Secure Cookie 的开关
+COOKIE_DOMAIN_ENV = "CS_LEGENDS_COOKIE_DOMAIN"  # 认证 Cookie 的可选 Domain 属性
+
+ACCESS_TTL_SECONDS = 15 * 60  # access token 有效期：15 分钟
+REFRESH_TTL_SECONDS = 7 * 24 * 60 * 60  # refresh token 有效期：7 天
+JWT_ALGORITHM = "HS256"  # JWT 签名算法
+
+_DEV_SECRET = "dev-only-insecure-jwt-secret-change-me-0123456789"  # 仅开发环境使用
+_dev_secret_warned = False  # 记录开发密钥警告是否已打印
 
 _ENV_FILES = (PROJECT_ROOT / ".env", Path.cwd() / ".env")  # 候选文件路径
 _env_loaded = False  # 记录是否已加载环境变量
@@ -64,3 +75,56 @@ def db_url() -> str | None:
         return None
     load_env_files()    # 加载环境变量
     return os.environ.get(DB_URL_ENV, "").strip() or None  # 返回数据库连接字符串，如果不存在则返回 None
+
+
+def environment() -> str:
+    """``"prod"`` or ``"dev"`` (default). Affects secret and cookie strictness."""
+    load_env_files()    # 加载环境变量
+    return os.environ.get(ENVIRONMENT_ENV, "").strip().lower() or "dev"  # 返回运行环境，如果不存在则返回 "dev"
+
+
+def jwt_secret() -> str:
+    """HS256 signing key: at least 32 bytes, never a default in production."""
+    global _dev_secret_warned
+    load_env_files()    # 加载环境变量
+    secret = os.environ.get(JWT_SECRET_ENV, "").strip()  # 获取 JWT 签名密钥，去掉首尾空格，如果不存在则返回空字符串
+    if secret:
+        if len(secret) < 32 and environment() == "prod":
+            raise RuntimeError(f"{JWT_SECRET_ENV} 至少需要 32 个字符")
+        return secret
+    if environment() == "prod":
+        raise RuntimeError(
+            f"生产环境必须设置 {JWT_SECRET_ENV}；"
+            '可用 python -c "import secrets;print(secrets.token_urlsafe(48))" 生成'
+        )
+    if not _dev_secret_warned:
+        _dev_secret_warned = True
+        print(f"[config] 未设置 {JWT_SECRET_ENV}，使用开发用固定密钥（切勿用于生产）", file=sys.stderr)
+    return _DEV_SECRET
+
+
+def access_ttl() -> int:
+    """Access-token lifetime in seconds."""
+    return ACCESS_TTL_SECONDS
+
+
+def refresh_ttl() -> int:
+    """Refresh-token lifetime in seconds."""
+    return REFRESH_TTL_SECONDS
+
+
+def cookie_secure() -> bool:
+    """``Secure`` cookies: on by default in production, overridable for local HTTPS."""
+    load_env_files()    # 加载环境变量
+    override = os.environ.get(COOKIE_SECURE_ENV, "").strip().lower()  # 获取 Cookie 是否安全
+    if override in {"1", "true", "yes", "on"}:
+        return True
+    if override in {"0", "false", "no", "off"}:
+        return False
+    return environment() == "prod"
+
+
+def cookie_domain() -> str | None:
+    """Optional ``Domain`` attribute for the auth cookies."""
+    load_env_files()
+    return os.environ.get(COOKIE_DOMAIN_ENV, "").strip() or None

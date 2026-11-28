@@ -1,0 +1,20 @@
+{% if user %}
+<details class="account-menu">
+  <summary class="account-chip">
+    <span class="account-chip__avatar">{{ (user.display_name or user.username)[0] }}</span>
+    <span class="account-chip__copy">
+      <b>{{ user.display_name or user.username }}</b>
+      <small>{{ user.email }}</small>
+    </span>
+  </summary>
+  <div class="account-menu__panel">
+    <a class="account-menu__item" href="/account">账号信息</a>
+    <form method="post" action="/auth/logout">
+      <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
+      <button type="submit" class="account-menu__item account-menu__item--danger">退出登录</button>
+    </form>
+  </div>
+</details>
+{% else %}
+<a class="account-chip account-chip--guest" href="/login?next={{ request.url.path }}">登录</a>
+{% endif %}

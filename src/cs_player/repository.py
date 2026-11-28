@@ -133,7 +133,7 @@ def get_events(player_id: str | None = None) -> list[dict]:
         appearance_ids = [appearance.id for appearance, *_ in rows]  # 提取所有出现记录的id
 
         matches: dict[int, list[dict]] = defaultdict(list)  # 初始化比赛字典
-        in_matches = session.exec(    # 查询所有选手的比赛记录
+        in_matches = session.scalars(    # 查询所有选手的比赛记录
             select(AppearanceMatch)
             .where(AppearanceMatch.appearance_id.in_(appearance_ids))
             .order_by(AppearanceMatch.appearance_id, AppearanceMatch.seq)

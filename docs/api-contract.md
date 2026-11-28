@@ -87,6 +87,55 @@ Base URL：`http://127.0.0.1:8000`
 - 响应与数据源无关：**MySQL 是主数据源**（`CS_LEGENDS_DB_URL` / `.env`），数据库不可达时回退到内置 JSON；两种模式的 JSON 输出逐字节一致（见 `scripts/check_parity.py`）。
 - 缓存出来的数据一律当只读用，要改就先拷贝一份。
 
-## 3. 账号接口（本期不提供）
+## 3. 账号接口
 
-v1 聚焦纯前端展示，不提供注册、登录、退出、个人页或用户 JSON 接口；`/login`、`/me`、`/api/me` 返回 `404`。v2 暂不做账号体系（见 `docs/ROADMAP-v2.md` 的 2026-11-21 决策记录），未来恢复时再补充本节契约。
+OAuth2 **密码模式**：浏览器用表单 + HttpOnly Cookie，API 客户端用 bearer 令牌。除注册、登录、刷新外，账号接口都需要登录态；`/api/players/zywoo` 等公开只读接口**不需要**登录。
+
+| 方法 · 路径 | 用途 | 成功 | 失败 |
+| --- | --- | --- | --- |
+| `GET /login` | 登录页 | 200 HTML；已登录时 303 跳到 `next` | — |
+| `POST /auth/login` | 表单登录（`username`/`password`/`csrf_token`/`next`） | 303 → `next`，写 `access_token` + `refresh_token` Cookie | 401 密码错；429 限流；403 CSRF |
+| `GET /register` | 注册页 | 200 HTML | — |
+| `POST /auth/register` | 表单注册（`email`/`username`/`password`/`password_confirm`/`csrf_token`） | 303 → `/login?registered=1` | 409 重名；422 校验失败；403 CSRF |
+| `POST /auth/token` | OAuth2 密码模式（`username` 可填邮箱或用户名） | 200 见下 | 401 `WWW-Authenticate: Bearer`；429 限流 |
+| `POST /auth/refresh` | 轮换刷新令牌（Cookie 或 body `refresh_token`） | 200 新令牌对 | 401 无效 / 过期 / 重放 |
+| `POST /auth/logout` | 退出当前设备（表单，需 `csrf_token`） | 303 → `/`，清 Cookie | 403 CSRF |
+| `GET /account` | 账号页 | 200 HTML | 未登录 303 → `/login?next=/account` |
+| `GET /api/me` | 当前账号（Bearer 或 Cookie） | 200 见下 | 401 |
+
+`POST /auth/token` 与 `POST /auth/refresh` 的响应体：
+
+```json
+{
+  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "refresh_token": "Yb3k... (opaque, 43 chars)",
+  "token_type": "bearer",
+  "expires_in": 900
+}
+```
+
+`GET /api/me` 的响应体：
+
+```json
+{
+  "id": 1,
+  "email": "you@example.com",
+  "username": "you",
+  "display_name": "you",
+  "role": "user",
+  "created_at": "2026-11-25T08:00:00",
+  "last_login_at": "2026-11-25T16:00:00"
+}
+```
+
+约定：
+
+- **access token**：JWT HS256，`sub` 用户 id、`jti`、`iat`、`exp`、`ver`（= `app_user.token_version`）、`typ=access`；15 分钟。`ver` 不匹配即视为已吊销。
+- **refresh token**：不透明随机串，7 天；服务端只存 sha256，每次刷新轮换。已轮换的令牌被再次使用时，该用户整条令牌链撤销且 `token_version + 1`（所有 access token 立即失效）。
+- **Cookie**：`access_token`（`Path=/`）、`refresh_token`（`Path=/auth`）、`csrf_token`（非 HttpOnly）；均 `SameSite=Lax`，生产环境加 `Secure`。
+- **CSRF**：表单 POST 必须带隐藏字段 `csrf_token`，值与 `csrf_token` Cookie 一致；Bearer 客户端免 CSRF。
+- **限流**：同一 identifier 或同一 IP，15 分钟内失败 5 次后返回 429（记录在 `login_attempt` 表）。
+- **错误文案**：登录失败统一「邮箱或密码不正确」，不区分账号不存在与密码错误。
+- 目前只做登录态，没有收藏 / 评论接口；没有邮箱验证与找回密码。
+
+表结构见 `docs/auth-schema.sql`，完整链路自检见 `scripts/check_auth.py`。
